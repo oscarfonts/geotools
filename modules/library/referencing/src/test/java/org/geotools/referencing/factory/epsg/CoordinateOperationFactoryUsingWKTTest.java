@@ -44,10 +44,18 @@ import org.opengis.referencing.operation.TransformException;
 public class CoordinateOperationFactoryUsingWKTTest {
 
     CoordinateOperationFactoryUsingWKT factory;
+    
     private static final String DEFINITIONS_FILE_NAME = "epsg_operations.properties";
+    private static Properties properties;
+    
+    private static final String SOURCE_CRS = "EPSG:TEST1";
+    private static final String TARGET_CRS = "EPSG:TEST2";
+    private static final String CRS_PAIR = SOURCE_CRS + "," + TARGET_CRS;
+    private static final String INVERSE_CRS_PAIR = TARGET_CRS + "," + SOURCE_CRS;
+    private static final String INVALID_CRS = "nonexistent";
+    
     private static final double[] SRC_TEST_POINT = {3.084896111, 39.592654167};
     private static final double[] DST_TEST_POINT = {3.0844689951999427, 39.594235744481225};
-    private static Properties properties;
     
     /**
      * @throws java.lang.Exception
@@ -91,15 +99,13 @@ public class CoordinateOperationFactoryUsingWKTTest {
             new Hints(Hints.COORDINATE_OPERATION_AUTHORITY_FACTORY,
                 CoordinateOperationFactoryUsingWKT.class));
         
-        CoordinateOperation co = fact.createCoordinateOperation("4326,4230");
-        
-        CoordinateReferenceSystem crs = CRS.decode("EPSG:4326");
+        // BTW testing the inverse construction
+        CoordinateOperation co = fact.createCoordinateOperation(INVERSE_CRS_PAIR);
+        CoordinateReferenceSystem crs = CRS.decode(TARGET_CRS);
         assertSame(crs, co.getSourceCRS());
-        crs = CRS.decode("EPSG:4230");
+        crs = CRS.decode(SOURCE_CRS);
         assertSame(crs, co.getTargetCRS());
 
-        // Testing BTW the inverse construction
-        // (factory is building the 4326->4230 transform from the 4230->4326 definition)
         assertTrue(co.getMathTransform() instanceof MathTransform);
         double[] p = new double[2];
         co.getMathTransform().transform(DST_TEST_POINT, 0, p, 0, 1);
@@ -122,28 +128,26 @@ public class CoordinateOperationFactoryUsingWKTTest {
     @Test
     public void testCreateCoordinateOperation() throws TransformException {
         
-        String testCode = "nonexistent";
         try {
-            factory.createCoordinateOperation(testCode);
+            factory.createCoordinateOperation(INVALID_CRS);
             fail();
         } catch (NoSuchAuthorityCodeException e) {
             // This is the expected exception for a bad code
-            assertEquals(testCode, e.getAuthorityCode());
+            assertEquals(INVALID_CRS, e.getAuthorityCode());
         } catch (FactoryException e) {
             fail(factory.getClass().getSimpleName() + " threw a FactoryException when requesting"
               + "a nonexistent operation. Instead, a NoSuchAuthorityCodeException was expected.");
         }
 
-        testCode = "4230,4326";        
         try {
             // Test CoordinateOperation
-            CoordinateOperation co = factory.createCoordinateOperation(testCode);
+            CoordinateOperation co = factory.createCoordinateOperation(CRS_PAIR);
             assertNotNull(co);
 
             // Test CRSs
-            CoordinateReferenceSystem crs = CRS.decode("EPSG:4230");
+            CoordinateReferenceSystem crs = CRS.decode(SOURCE_CRS);
             assertSame(crs, co.getSourceCRS());
-            crs = CRS.decode("EPSG:4326");
+            crs = CRS.decode(TARGET_CRS);
             assertSame(crs, co.getTargetCRS());
             
             // Test MathTransform
@@ -165,30 +169,26 @@ public class CoordinateOperationFactoryUsingWKTTest {
      */
     @Test
     public void testCreateFromCoordinateReferenceSystemCodes() throws TransformException {
-        String testSource = "nonexistent";
-        String testTarget = "nonexistent";
         try {
             Set<CoordinateOperation> cos = factory.createFromCoordinateReferenceSystemCodes(
-                    testSource, testTarget);
+                    INVALID_CRS, INVALID_CRS);
             assertTrue(cos.isEmpty());
         } catch (FactoryException e) {
             fail(factory.getClass().getSimpleName() + " threw a FactoryException when requesting"
                     + "a nonexistent operation. Instead, a NoSuchAuthorityCodeException was expected.");
         }
         
-        testSource = "EPSG:4230";
-        testTarget = "EPSG:4326";
         try {
             // Test CoordinateOperation
-            Set<CoordinateOperation> cos = factory.createFromCoordinateReferenceSystemCodes(testSource, testTarget);
+            Set<CoordinateOperation> cos = factory.createFromCoordinateReferenceSystemCodes(SOURCE_CRS, TARGET_CRS);
             assertTrue(cos.size() == 1);
             CoordinateOperation co = cos.iterator().next();
             assertNotNull(co);
 
             // Test CRSs
-            CoordinateReferenceSystem crs = CRS.decode(testSource);
+            CoordinateReferenceSystem crs = CRS.decode(SOURCE_CRS);
             assertSame(crs, co.getSourceCRS());
-            crs = CRS.decode(testTarget);
+            crs = CRS.decode(TARGET_CRS);
             assertSame(crs, co.getTargetCRS());
             
             // Test MathTransform

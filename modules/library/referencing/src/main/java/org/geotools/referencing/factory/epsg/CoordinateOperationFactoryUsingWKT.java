@@ -21,14 +21,12 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Iterator;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
 import org.geotools.factory.GeoTools;
 import org.geotools.factory.Hints;
 import org.geotools.metadata.iso.citation.Citations;
-import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.factory.AbstractAuthorityFactory;
 import org.geotools.referencing.factory.DeferredAuthorityFactory;
 import org.geotools.referencing.factory.FactoryNotFoundException;
@@ -42,8 +40,6 @@ import org.geotools.util.logging.Logging;
 import org.opengis.metadata.Identifier;
 import org.opengis.metadata.citation.Citation;
 import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.CoordinateOperation;
 import org.opengis.referencing.operation.CoordinateOperationAuthorityFactory;
 
@@ -99,7 +95,7 @@ public class CoordinateOperationFactoryUsingWKT extends DeferredAuthorityFactory
     /**
      * Priority for this factory
      */
-    public static final int PRIORITY = MAXIMUM_PRIORITY - 2;
+    public static final int PRIORITY = NORMAL_PRIORITY - 20;
     
     /**
      * The factories to be given to the backing store.
@@ -110,16 +106,6 @@ public class CoordinateOperationFactoryUsingWKT extends DeferredAuthorityFactory
      * Directory scanned for extra definitions.
      */
     protected final String directory;
-
-    /**
-     * An alternate factory to be used when the primary one doesn't find an operation 
-     */
-    protected CoordinateOperationAuthorityFactory fallbackAuthorityFactory = null;
-    
-    /**
-     * Just a flag not to search more than once
-     */
-    protected boolean fallbackAuthorityFactorySearched = false;
     
     /**
      * Constructs an authority factory using the default set of factories.
@@ -221,108 +207,5 @@ public class CoordinateOperationFactoryUsingWKT extends DeferredAuthorityFactory
             Logging.unexpectedException(LOGGER, exception);
         }
         return this.getClass().getResource(FILENAME);
-    }
-
-    /**
-     * Creates operations from {@linkplain CoordinateReferenceSystem coordinate reference system}
-     * codes.
-     * 
-     * This method searches in the {@linkplain #FILENAME properties file} for operations.
-     * 
-     * If not found there, it will create operations from a fallback factory (see
-     * {@link #getFallbackAuthorityFactory}).
-     *
-     * @param  sourceCRS   Coded value of source coordinate reference system.
-     * @param  targetCRS   Coded value of target coordinate reference system.
-     * @return The operations from {@code sourceCRS} to {@code targetCRS}.
-     * @throws NoSuchAuthorityCodeException if a specified code was not found.
-     * @throws FactoryException if the object creation failed for some other reason.
-     */
-    @Override
-    public Set<CoordinateOperation> createFromCoordinateReferenceSystemCodes(
-            String sourceCRS, String targetCRS) throws NoSuchAuthorityCodeException, FactoryException {
-        Set<CoordinateOperation> coordops = super.createFromCoordinateReferenceSystemCodes(sourceCRS, targetCRS);
-        if (coordops.isEmpty()) {
-            // If not found, delegate to the fallback factory.
-            CoordinateOperationAuthorityFactory fallback = getFallbackAuthorityFactory();
-            if (fallback != null) {
-                coordops = fallback.createFromCoordinateReferenceSystemCodes(sourceCRS, targetCRS);
-            }
-        }
-        return coordops;
-    }
-    
-    /**
-     * Creates an operation from a single operation code.
-     * 
-     * This method searches in the {@linkplain #FILENAME properties file} for operations.
-     * 
-     * If not found there, it will create operations from a fallback factory (see
-     * {@link #getFallbackAuthorityFactory}).
-     *
-     * @param  code Coded value for operation.
-     * @return The operation from {@code sourceCRS} to {@code targetCRS}.
-     * @throws NoSuchAuthorityCodeException if a specified code was not found.
-     * @throws FactoryException if the object creation failed for some other reason.
-     */
-    public CoordinateOperation createCoordinateOperation(String code)
-            throws NoSuchAuthorityCodeException, FactoryException {
-        CoordinateOperation coordop = null;
-        try {
-            coordop = super.createCoordinateOperation(code);
-        } catch (FactoryException firstException) {
-            try {
-                CoordinateOperationAuthorityFactory fallback = getFallbackAuthorityFactory();
-                if (fallback != null) {
-                    coordop = fallback.createCoordinateOperation(code);
-                }
-            } catch (FactoryException secondException) {
-                throw firstException;
-            }
-        }
-        if (coordop == null) {
-            throw new NoSuchAuthorityCodeException("Not a valid code", authority.toString(), code);
-        }
-        return coordop;
-    }
-    
-    /**
-     * Gets the next available {@link CoordinateOperationAuthorityFactory}
-     * in the priority list.
-     * 
-     * @return the alternative CoordinateOperationAuthorityFactory.
-     * @throws NoSuchAuthorityCodeException if a specified code was not found.
-     * @throws FactoryException if the object creation failed for some other reason.
-     */
-    protected CoordinateOperationAuthorityFactory getFallbackAuthorityFactory()
-            throws NoSuchAuthorityCodeException, FactoryException {
-
-        if(!fallbackAuthorityFactorySearched) { // Search once
-            CoordinateOperationAuthorityFactory candidate = null;
-            Set<CoordinateOperationAuthorityFactory> factories = ReferencingFactoryFinder.
-                    getCoordinateOperationAuthorityFactories(null);
-            Iterator<CoordinateOperationAuthorityFactory> it = factories.iterator();
-            
-            // Skip factories with higher priority than me.
-            while (it.hasNext()) {
-                candidate = it.next();
-                if (candidate == this) {
-                    break;
-                }
-            }
-            
-            // Get the next one for this same authority
-            while (it.hasNext()) {
-                candidate = it.next();
-                if (!(candidate instanceof CoordinateOperationFactoryUsingWKT)
-                        && candidate.getAuthority().getTitle().equals(this.getAuthority().getTitle())) {
-                    fallbackAuthorityFactory = candidate;
-                    break;
-                }
-            }
-            fallbackAuthorityFactorySearched = true;
-        }
-
-        return fallbackAuthorityFactory;
     }
 }
