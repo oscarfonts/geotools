@@ -53,7 +53,6 @@ import org.opengis.referencing.operation.*;
 import org.opengis.util.GenericName;
 import org.opengis.util.InternationalString;
 
-import org.geotools.factory.FactoryNotFoundException;
 import org.geotools.factory.Hints;
 import org.geotools.measure.Units;
 import org.geotools.metadata.iso.citation.Citations;
@@ -65,7 +64,6 @@ import org.geotools.metadata.iso.quality.AbsoluteExternalPositionalAccuracyImpl;
 import org.geotools.parameter.DefaultParameterDescriptor;
 import org.geotools.parameter.DefaultParameterDescriptorGroup;
 import org.geotools.referencing.AbstractIdentifiedObject;
-import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.factory.AbstractAuthorityFactory;
 import org.geotools.referencing.factory.DirectAuthorityFactory;
 import org.geotools.referencing.factory.IdentifiedObjectFinder;
@@ -2493,20 +2491,6 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
             throws FactoryException
     {
         ensureNonNull("code", code);
-        
-        // Search for user-defined coordops first.
-        try {
-            CoordinateOperation co = getCoordinateOperationFactoryUsingWkt().
-                    createCoordinateOperation(code);
-            if(co != null) {
-                return co;
-            }   
-        } catch (FactoryNotFoundException e) {
-            // OK, no WKT factory found. 
-        } catch (NoSuchAuthorityCodeException e) {
-            // OK, no WKT operation found.
-        }
-        
         CoordinateOperation returnValue = null;
         ResultSet result = null;
         try {
@@ -2781,13 +2765,6 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
         }
     }
 
-    private CoordinateOperationAuthorityFactory getCoordinateOperationFactoryUsingWkt() {
-        return ReferencingFactoryFinder.getCoordinateOperationAuthorityFactory(
-                this.getAuthority().getIdentifiers().iterator().next().getCode(),
-                new Hints(Hints.COORDINATE_OPERATION_AUTHORITY_FACTORY,
-                        CoordinateOperationFactoryUsingWKT.class));
-    }
-    
     /**
      * Creates operations from coordinate reference system codes.
      * The returned set is ordered with the most accurate operations first.
@@ -2810,20 +2787,6 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
     {
         ensureNonNull("sourceCode", sourceCode);
         ensureNonNull("targetCode", targetCode);
-        
-        // Search for user-defined coordops first.
-        try {
-            Set<CoordinateOperation> s = getCoordinateOperationFactoryUsingWkt().
-                    createFromCoordinateReferenceSystemCodes(sourceCode, targetCode);
-            if(!s.isEmpty()) {
-                return s;
-            }
-        } catch (FactoryNotFoundException e) {
-            // OK, no WKT factory found. 
-        } catch (NoSuchAuthorityCodeException e) {
-            // OK, no WKT operation found.
-        }
-        
         final String pair = sourceCode + " \u21E8 " + targetCode;
         final CoordinateOperationSet set = new CoordinateOperationSet(buffered);
         try {

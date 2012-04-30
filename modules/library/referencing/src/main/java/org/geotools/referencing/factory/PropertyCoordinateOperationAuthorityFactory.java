@@ -157,7 +157,7 @@ public class PropertyCoordinateOperationAuthorityFactory extends
                 return coordopset.iterator().next();
             }
         }
-        throw new NoSuchAuthorityCodeException("Not a valid code", authority.toString(), code);
+        return null;
     }
 
     /**

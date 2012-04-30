@@ -129,11 +129,7 @@ public class CoordinateOperationFactoryUsingWKTTest {
     public void testCreateCoordinateOperation() throws TransformException {
         
         try {
-            factory.createCoordinateOperation(INVALID_CRS);
-            fail();
-        } catch (NoSuchAuthorityCodeException e) {
-            // This is the expected exception for a bad code
-            assertEquals(INVALID_CRS, e.getAuthorityCode());
+            assertNull(factory.createCoordinateOperation(INVALID_CRS));
         } catch (FactoryException e) {
             fail(factory.getClass().getSimpleName() + " threw a FactoryException when requesting"
               + "a nonexistent operation. Instead, a NoSuchAuthorityCodeException was expected.");
